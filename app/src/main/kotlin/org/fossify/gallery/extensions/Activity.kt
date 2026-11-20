@@ -39,14 +39,18 @@ import org.fossify.gallery.R
 import org.fossify.gallery.activities.MediaActivity
 import org.fossify.gallery.activities.SettingsActivity
 import org.fossify.gallery.activities.SimpleActivity
+import org.fossify.gallery.activities.VideoEditActivity
 import org.fossify.gallery.activities.VideoPlayerActivity
 import org.fossify.gallery.dialogs.AllFilesPermissionDialog
 import org.fossify.gallery.dialogs.PickDirectoryDialog
 import org.fossify.gallery.dialogs.ResizeMultipleImagesDialog
 import org.fossify.gallery.dialogs.ResizeWithPathDialog
+import org.fossify.gallery.dialogs.SaveAsDialog
 import org.fossify.gallery.helpers.DIRECTORY
 import org.fossify.gallery.helpers.RECYCLE_BIN
 import org.fossify.gallery.helpers.TEMP_FOLDER_NAME
+import org.fossify.gallery.helpers.VIDEO_EDIT_POSITION
+import org.fossify.gallery.helpers.VideoFrameExtractor
 import org.fossify.gallery.models.DateTaken
 import java.io.*
 import java.text.SimpleDateFormat
@@ -89,10 +93,23 @@ fun Activity.launchGesturePlayer(path: String, extras: HashMap<String, Boolean> 
         runOnUiThread {
             Intent(applicationContext, VideoPlayerActivity::class.java).apply {
                 setDataAndType(newUri, mimeType)
+                putExtra(REAL_FILE_PATH, path)
                 for ((key, value) in extras) putExtra(key, value)
                 startActivity(this)
             }
         }
+    }
+}
+
+fun Activity.launchVideoEditor(source: Uri, realPath: String?, positionMs: Long) {
+    Intent(this, VideoEditActivity::class.java).apply {
+        data = source
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        if (!realPath.isNullOrEmpty()) {
+            putExtra(REAL_FILE_PATH, realPath)
+        }
+        putExtra(VIDEO_EDIT_POSITION, positionMs)
+        startActivity(this)
     }
 }
 
@@ -1071,4 +1088,179 @@ fun Activity.proposeNewFilePath(uri: Uri): Pair<String, Boolean> {
     }
 
     return Pair(newPath, shouldAppendFilename)
+}
+
+private const val FRAME_NAME_ATTEMPTS = 100
+
+fun BaseSimpleActivity.extractAndSaveVideoFrame(
+    source: Uri,
+    positionMs: Long,
+    directoryHint: String,
+    displayName: String,
+) {
+    ensureBackgroundThread {
+        val bitmap = VideoFrameExtractor.extract(this, source, positionMs)
+        runOnUiThread {
+            if (bitmap == null) {
+                toast(R.string.extract_frame_failed)
+                return@runOnUiThread
+            }
+            saveVideoFrameBitmap(bitmap, directoryHint, displayName, positionMs)
+        }
+    }
+}
+
+fun BaseSimpleActivity.saveVideoFrameBitmap(
+    bitmap: Bitmap,
+    directoryHint: String,
+    displayName: String,
+    positionMs: Long,
+) {
+    val baseName = VideoFrameExtractor.frameBaseName(displayName.ifBlank { "frame" })
+    val suffix = "frame_${VideoFrameExtractor.frameStamp(positionMs)}"
+    pickWritableExportPath(
+        directoryHint = directoryHint,
+        baseName = baseName,
+        fileStemSuffix = suffix,
+        extension = "jpg",
+        onCancel = { recycleFrame(bitmap) },
+        onPath = { saveExtractedFrame(bitmap, it) },
+    )
+}
+
+fun BaseSimpleActivity.pickWritableExportPath(
+    directoryHint: String,
+    baseName: String,
+    fileStemSuffix: String,
+    extension: String,
+    onCancel: () -> Unit,
+    onPath: (String) -> Unit,
+) {
+    val safeBase = VideoFrameExtractor.frameBaseName(baseName)
+    val directory = writableFrameDirectory(directoryHint) ?: fallbackFrameDirectory(directoryHint)
+    val proposed = uniqueExportPath(
+        directory = directory,
+        baseName = safeBase,
+        fileStemSuffix = fileStemSuffix,
+        extension = extension,
+    )
+    SaveAsDialog(
+        activity = this,
+        path = proposed,
+        appendFilename = false,
+        cancelCallback = onCancel,
+        callback = onPath,
+    )
+}
+
+private fun BaseSimpleActivity.writableFrameDirectory(directoryHint: String): String? {
+    val directory = directoryHint.trimEnd('/')
+    if (directory.isEmpty() || directory.startsWith("content:")) {
+        return null
+    }
+
+    if (!File(directory).isDirectory || !getDoesFilePathExist(directory)) {
+        return null
+    }
+
+    if (isRestrictedWithSAFSdk30(directory) && !isInDownloadDir(directory)) {
+        return null
+    }
+
+    return directory
+}
+
+private fun BaseSimpleActivity.fallbackFrameDirectory(directoryHint: String): String {
+    val directory = directoryHint.trimEnd('/')
+    val anchor = if (directory.isEmpty() || directory.startsWith("content:")) {
+        internalStoragePath
+    } else {
+        directory
+    }
+    return if (isRestrictedWithSAFSdk30(anchor) && !isInDownloadDir(anchor)) {
+        getPicturesDirectoryPath(anchor)
+    } else if (File(anchor).isDirectory) {
+        anchor
+    } else {
+        getPicturesDirectoryPath(internalStoragePath)
+    }
+}
+
+private fun BaseSimpleActivity.uniqueExportPath(
+    directory: String,
+    baseName: String,
+    fileStemSuffix: String,
+    extension: String,
+): String {
+    val folder = directory.trimEnd('/')
+    val stem = "${baseName}_$fileStemSuffix"
+    val ext = extension.trimStart('.')
+    var path = "$folder/$stem.$ext"
+    var index = 2
+    while (getDoesFilePathExist(path) && index <= FRAME_NAME_ATTEMPTS) {
+        path = "$folder/${stem}_$index.$ext"
+        index++
+    }
+    if (getDoesFilePathExist(path)) {
+        path = "$folder/${stem}_${System.currentTimeMillis()}.$ext"
+    }
+    return path
+}
+
+private fun BaseSimpleActivity.saveExtractedFrame(bitmap: Bitmap, path: String) {
+    toast(org.fossify.commons.R.string.saving)
+    ensureBackgroundThread {
+        try {
+            val format = path.getCompressionFormat()
+            var wrote = false
+            try {
+                FileOutputStream(File(path)).use { out ->
+                    wrote = bitmap.compress(format, VideoFrameExtractor.JPEG_QUALITY, out)
+                }
+            } catch (_: Exception) {
+                wrote = false
+            }
+
+            if (!wrote) {
+                val out = getFileOutputStreamSync(path, "image/jpeg")
+                if (out == null) {
+                    runOnUiThread {
+                        recycleFrame(bitmap)
+                        toast(R.string.extract_frame_failed)
+                    }
+                    return@ensureBackgroundThread
+                }
+                wrote = out.use { bitmap.compress(format, VideoFrameExtractor.JPEG_QUALITY, it) }
+            }
+
+            if (!wrote) {
+                runOnUiThread {
+                    recycleFrame(bitmap)
+                    toast(R.string.extract_frame_failed)
+                }
+                return@ensureBackgroundThread
+            }
+
+            recycleFrame(bitmap)
+            rescanPaths(arrayListOf(path)) {
+                toast(org.fossify.commons.R.string.file_saved)
+            }
+        } catch (e: Exception) {
+            runOnUiThread {
+                recycleFrame(bitmap)
+                showErrorToast(e)
+            }
+        } catch (_: OutOfMemoryError) {
+            runOnUiThread {
+                recycleFrame(bitmap)
+                toast(org.fossify.commons.R.string.out_of_memory_error)
+            }
+        }
+    }
+}
+
+private fun recycleFrame(bitmap: Bitmap) {
+    if (!bitmap.isRecycled) {
+        bitmap.recycle()
+    }
 }

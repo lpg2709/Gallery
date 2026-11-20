@@ -280,4 +280,14 @@
     <string name="open_in_app_player">Abrir na aplicação</string>
     <string name="open_system_default_player">Abrir aplicação padrão</string>
     <string name="video_no_sound">Este vídeo não tem som</string>
+    <string name="extract_frame">Extrair frame</string>
+    <string name="video_extract_frame">Extrair\nframe</string>
+    <string name="extract_frame_failed">Não foi possível extrair o frame</string>
+    <string name="video_editor">Editor de vídeo</string>
+    <string name="video_mute">Silenciar</string>
+    <string name="video_frame_previous">Fotograma anterior</string>
+    <string name="video_frame_next">Fotograma seguinte</string>
+    <string name="video_frame_step">Fotograma a fotograma</string>
+    <string name="video_edit_unchanged">Nada para guardar</string>
+    <string name="video_edit_failed">Não foi possível guardar o vídeo</string>
 </resources>

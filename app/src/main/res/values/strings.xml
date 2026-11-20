@@ -274,6 +274,16 @@
 
     <!-- Player-->
     <string name="video_no_sound">This video has no audio</string>
+    <string name="extract_frame">Extract frame</string>
+    <string name="video_extract_frame">Extract\nframe</string>
+    <string name="extract_frame_failed">Could not extract the frame</string>
+    <string name="video_editor">Video editor</string>
+    <string name="video_mute">Mute</string>
+    <string name="video_frame_previous">Previous frame</string>
+    <string name="video_frame_next">Next frame</string>
+    <string name="video_frame_step">Frame by frame</string>
+    <string name="video_edit_unchanged">Nothing to save</string>
+    <string name="video_edit_failed">Could not save the video</string>
 
     <!-- FAQ -->
     <string name="faq_1_title">How can I make Fossify Gallery the default device gallery?</string>

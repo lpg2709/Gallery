@@ -170,6 +170,12 @@
             android:theme="@style/TranslucentTheme" />
 
         <activity
+            android:name=".activities.VideoEditActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:exported="false"
+            android:label="@string/video_editor" />
+
+        <activity
             android:name=".activities.IncludedFoldersActivity"
             android:configChanges="orientation"
             android:exported="false"
