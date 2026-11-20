@@ -112,6 +112,7 @@ import org.fossify.gallery.extensions.launchResizeImageDialog
 import org.fossify.gallery.extensions.launchSettings
 import org.fossify.gallery.extensions.mediaDB
 import org.fossify.gallery.extensions.movePathsInRecycleBin
+import org.fossify.gallery.extensions.launchVideoEditor
 import org.fossify.gallery.extensions.openEditor
 import org.fossify.gallery.extensions.openPath
 import org.fossify.gallery.extensions.restoreRecycleBinPath
@@ -147,6 +148,7 @@ import org.fossify.gallery.helpers.BOTTOM_ACTION_TOGGLE_VISIBILITY
 import org.fossify.gallery.helpers.ColorModeHelper
 import org.fossify.gallery.helpers.DefaultPageTransformer
 import org.fossify.gallery.helpers.FadePageTransformer
+import org.fossify.gallery.helpers.VideoFrameExtractor
 import org.fossify.gallery.helpers.GO_TO_NEXT_ITEM
 import org.fossify.gallery.helpers.GO_TO_PREV_ITEM
 import org.fossify.gallery.helpers.HIDE_SYSTEM_UI_DELAY
@@ -294,6 +296,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                 findItem(R.id.menu_delete).isVisible = visibleBottomActions and BOTTOM_ACTION_DELETE == 0
                 findItem(R.id.menu_share).isVisible = visibleBottomActions and BOTTOM_ACTION_SHARE == 0
                 findItem(R.id.menu_edit).isVisible = visibleBottomActions and BOTTOM_ACTION_EDIT == 0 && !currentMedium.isSVG()
+                findItem(R.id.menu_edit).title = getString(R.string.edit)
                 findItem(R.id.menu_rename).isVisible = visibleBottomActions and BOTTOM_ACTION_RENAME == 0 && !currentMedium.getIsInRecycleBin()
                 findItem(R.id.menu_rotate).isVisible = currentMedium.isImage() && visibleBottomActions and BOTTOM_ACTION_ROTATE == 0
                 findItem(R.id.menu_set_as).isVisible = visibleBottomActions and BOTTOM_ACTION_SET_AS == 0
@@ -358,7 +361,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                 R.id.menu_delete -> checkDeleteConfirmation()
                 R.id.menu_rename -> checkMediaManagementAndRename()
                 R.id.menu_print -> printFile()
-                R.id.menu_edit -> openEditor(getCurrentPath())
+                R.id.menu_edit -> editCurrentMedium()
                 R.id.menu_properties -> showProperties()
                 R.id.menu_show_on_map -> showFileOnMap(getCurrentPath())
                 R.id.menu_rotate_right -> rotateImage(90)
@@ -903,6 +906,23 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
 
     private fun getCurrentPhotoFragment() = getCurrentFragment() as? PhotoFragment
 
+    private fun editCurrentMedium() {
+        val medium = getCurrentMedium() ?: return
+        if (medium.isVideo()) {
+            openCurrentVideoEditor(medium)
+        } else {
+            openEditor(medium.path)
+        }
+    }
+
+    private fun openCurrentVideoEditor(medium: Medium) {
+        val fragment = getCurrentFragment() as? VideoFragment
+        fragment?.pauseForFrameExtract()
+        val uri = fragment?.frameSourceUri() ?: VideoFrameExtractor.videoFrameUri(medium.path)
+        val realPath = medium.path.takeIf { File(it).isFile }
+        launchVideoEditor(uri, realPath, fragment?.framePositionMs() ?: 0L)
+    }
+
     private fun getPortraitPath() = intent.getStringExtra(PORTRAIT_PATH) ?: ""
 
     private fun isShowHiddenFlagNeeded(): Boolean {
@@ -952,9 +972,12 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         }
 
         binding.bottomActions.bottomEdit.beVisibleIf(visibleBottomActions and BOTTOM_ACTION_EDIT != 0 && currentMedium?.isSVG() == false)
-        binding.bottomActions.bottomEdit.setOnLongClickListener { toast(R.string.edit); true }
+        binding.bottomActions.bottomEdit.setOnLongClickListener {
+            toast(R.string.edit)
+            true
+        }
         binding.bottomActions.bottomEdit.setOnClickListener {
-            openEditor(getCurrentPath())
+            editCurrentMedium()
         }
 
         binding.bottomActions.bottomShare.beVisibleIf(visibleBottomActions and BOTTOM_ACTION_SHARE != 0)

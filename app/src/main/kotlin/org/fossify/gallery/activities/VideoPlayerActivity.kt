@@ -59,6 +59,7 @@ import org.fossify.commons.extensions.getColoredDrawableWithColor
 import org.fossify.commons.extensions.getFilenameFromUri
 import org.fossify.commons.extensions.getFormattedDuration
 import org.fossify.commons.extensions.getProperTextColor
+import org.fossify.commons.extensions.getRealPathFromURI
 import org.fossify.commons.extensions.onGlobalLayout
 import org.fossify.commons.extensions.setDrawablesRelativeWithIntrinsicBounds
 import org.fossify.commons.extensions.showErrorToast
@@ -66,9 +67,11 @@ import org.fossify.commons.extensions.toast
 import org.fossify.commons.extensions.updateBrightness
 import org.fossify.commons.extensions.updateTextColors
 import org.fossify.commons.extensions.viewBinding
+import org.fossify.commons.helpers.REAL_FILE_PATH
 import org.fossify.gallery.R
 import org.fossify.gallery.databinding.ActivityVideoPlayerBinding
 import org.fossify.gallery.extensions.config
+import org.fossify.gallery.extensions.launchVideoEditor
 import org.fossify.gallery.extensions.getActionBarHeight
 import org.fossify.gallery.extensions.getFormattedDuration
 import org.fossify.gallery.extensions.getFriendlyMessage
@@ -93,6 +96,7 @@ import org.fossify.gallery.helpers.SHOW_PREV_ITEM
 import org.fossify.gallery.helpers.VideoGestureCallbacks
 import org.fossify.gallery.helpers.VideoGestureHelper
 import org.fossify.gallery.interfaces.PlaybackSpeedListener
+import java.io.File
 import java.text.DecimalFormat
 import kotlin.math.max
 import kotlin.math.min
@@ -223,6 +227,7 @@ open class VideoPlayerActivity : BaseViewerActivity(), SeekBar.OnSeekBarChangeLi
                 R.id.menu_default_orientation -> toggleOrientation(SCREEN_ORIENTATION_UNSPECIFIED)
                 R.id.menu_open_with -> openPath(mUri!!.toString(), true)
                 R.id.menu_share -> shareMediumPath(mUri!!.toString())
+                R.id.menu_edit -> openVideoEditor()
                 else -> return@setOnMenuItemClickListener false
             }
             return@setOnMenuItemClickListener true
@@ -231,6 +236,14 @@ open class VideoPlayerActivity : BaseViewerActivity(), SeekBar.OnSeekBarChangeLi
         binding.videoToolbar.setNavigationOnClickListener {
             finish()
         }
+    }
+
+    private fun openVideoEditor() {
+        val uri = mUri ?: return
+        pauseVideo()
+        val realPath = intent.getStringExtra(REAL_FILE_PATH)?.takeIf { File(it).isFile }
+            ?: getRealPathFromURI(uri)?.takeIf { File(it).isFile }
+        launchVideoEditor(uri, realPath, binding.bottomVideoTimeHolder.videoSeekbar.progress.toLong())
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

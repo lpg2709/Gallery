@@ -275,6 +275,16 @@
     <string name="overwrite_original">Sobrescrever original</string>
     <string name="render_ultra_hdr_photos">Mostrar fotos Ultra HDR em HDR</string>
     <string name="video_no_sound">Este vídeo não tem áudio</string>
+    <string name="extract_frame">Extrair frame</string>
+    <string name="video_extract_frame">Extrair\nframe</string>
+    <string name="extract_frame_failed">Não foi possível extrair o frame</string>
+    <string name="video_editor">Editor de vídeo</string>
+    <string name="video_mute">Mutar</string>
+    <string name="video_frame_previous">Quadro anterior</string>
+    <string name="video_frame_next">Próximo quadro</string>
+    <string name="video_frame_step">Frame a frame</string>
+    <string name="video_edit_unchanged">Nada para salvar</string>
+    <string name="video_edit_failed">Não foi possível salvar o vídeo</string>
     <string name="on_video_tap">Ao tocar o vídeo</string>
     <string name="open_in_app_player">Abrir no player do aplicativo</string>
     <string name="open_system_default_player">Abrir no player padrão</string>

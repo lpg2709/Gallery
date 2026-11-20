@@ -80,6 +80,7 @@ import org.fossify.gallery.extensions.launchGesturePlayer
 import org.fossify.gallery.extensions.parseFileChannel
 import org.fossify.gallery.helpers.Config
 import org.fossify.gallery.helpers.EXOPLAYER_MAX_BUFFER_MS
+import org.fossify.gallery.helpers.VideoFrameExtractor
 import org.fossify.gallery.helpers.EXOPLAYER_MIN_BUFFER_MS
 import org.fossify.gallery.helpers.FAST_FORWARD_VIDEO_MS
 import org.fossify.gallery.helpers.MEDIUM
@@ -638,6 +639,27 @@ class VideoFragment : ViewPagerFragment(), TextureView.SurfaceTextureListener,
 
     private fun openPanorama() {
         TODO("Panorama is not yet implemented.")
+    }
+
+    fun framePositionMs(): Long {
+        if (!::mSeekBar.isInitialized) {
+            return mCurrTime.coerceAtLeast(0L)
+        }
+        return mSeekBar.progress.toLong().coerceAtLeast(0L)
+    }
+
+    fun pauseForFrameExtract() {
+        if (!::mPlayPauseButton.isInitialized) {
+            return
+        }
+        pauseVideo()
+    }
+
+    fun frameSourceUri(): Uri? {
+        if (!::mMedium.isInitialized) {
+            return null
+        }
+        return VideoFrameExtractor.videoFrameUri(mMedium.path)
     }
 
     override fun fullscreenToggled(isFullscreen: Boolean) {
